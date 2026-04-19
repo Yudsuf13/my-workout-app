@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Push Day Setup</title>
+    <style>
+        body {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        /* Layout for the main content areas */
+        .main-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .left-column, .right-column {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 600px;
+            gap: 20px;
+        }
+
+        @media (min-width: 1000px) {
+            .left-column { max-width: 600px; }
+            .right-column { max-width: 350px; }
+        }
+
+        .panel {
+            background: #2d2d2d;
+            padding: 20px;
+            border-radius: 8px;
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .timer-box { text-align: center; }
+        .timer-display { font-size: 1.5rem; font-weight: bold; color: #4cd137; }
+        
+        button {
+            background-color: #00a8ff;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        button:hover { background-color: #0097e6; }
+        
+        .video-container video {
+            width: 100%;
+            border-radius: 8px;
+            border: 2px solid #353b48;
+        }
+
+        input[type="number"] {
+            padding: 10px;
+            margin: 5px 0;
+            width: calc(50% - 15px);
+            background: #353b48;
+            border: 1px solid #718093;
+            color: white;
+            border-radius: 5px;
+        }
+        
+        .log-btn { width: 100%; padding: 15px; background-color: #e1b12c; font-size: 1.1rem; margin-top: 10px; }
+        .log-btn:hover { background-color: #fbc531; }
+        .next-btn { background-color: #9c88ff; }
+        .next-btn:hover { background-color: #8c7ae6; }
+        
+        #notionOutput {
+            width: 100%; height: 150px; margin-top: 20px; background: #353b48;
+            color: white; padding: 10px; border: none; border-radius: 5px; display: none;
+        }
+
+        /* Music Player Styles */
+        .music-controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+        #audioPlayer { width: 100%; margin-top: 10px; }
+        .shuffle-btn { background-color: #718093; }
+        .shuffle-btn.active { background-color: #4cd137; }
+        .song-title { font-size: 0.9rem; color: #dcdde1; margin-top: 10px; word-break: break-all; }
+        input[type="file"] { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <div class="left-column">
+            
+            <div class="panel header">
+                <div class="timer-box">
+                    <div>Session Time</div>
+                    <div class="timer-display" id="globalTimer">00:00</div>
+                </div>
+                <div class="timer-box">
+                    <div>Rest Timer</div>
+                    <div class="timer-display" id="intervalTimer" style="color: #e84118;">00:00</div>
+                    <button onclick="startInterval()">Start/Stop</button>
+                    <button onclick="resetInterval()">Reset</button>
+                </div>
+            </div>
+
+            <div class="video-container">
+                <video id="workoutVideo" loop controls playsinline>
+                    <source id="videoSource" src="{{ url_for('static', filename='videos/floor_press.mp4') }}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+
+            <div class="panel">
+            <h2 id="exerciseTitle">Dumbbell Floor Press</h2>
+            <div id="setIndicator">Current Set: 1/3</div>
+            
+            <div id="repsWeightGroup">
+                <input type="number" id="repsInput" placeholder="Reps (e.g., 8)">
+                <input type="number" id="weightInput" placeholder="Weight (e.g., 20)">
+            </div>
+            
+            <div id="timeGroup" style="display: none;">
+                <input type="number" id="timeInput" placeholder="Seconds (e.g., 60)">
+            </div>
+            
+            <button class="log-btn" onclick="logSet()">Log Set</button>
+            <button class="log-btn next-btn" onclick="nextExercise()">Next Exercise ➔</button>
+            <button class="log-btn" style="background-color: #44bd32;" onclick="finishWorkout()">Finish Session</button>
+
+            <textarea id="notionOutput" readonly></textarea>
+        </div>
+        </div>
+
+        <div class="right-column">
+            <div class="panel">
+                <h2>🎵 Music Box</h2>
+                <p style="font-size: 0.8rem; color: #a4b0be;">Select your local MP3s to build a session playlist.</p>
+                
+                <input type="file" id="musicUpload" multiple>
+                
+                <div class="music-controls">
+                    <button onclick="nextSong()">Next Track ➔</button>
+                    <button id="shuffleBtn" class="shuffle-btn" onclick="toggleShuffle()">Shuffle: OFF</button>
+                </div>
+
+                <div class="song-title" id="currentSongDisplay">No song selected</div>
+                
+                <audio id="audioPlayer" controls></audio>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. Exercise Setup ---
+        // We now have a Master Object holding all 3 days
+        // --- 1. Exercise Setup ---
+        const allRoutines = {
+            push: [
+                { name: "Dumbbell Floor Press", video: "floor_press.mp4", type: "reps" },
+                { name: "Dumbbell Overhead Press", video: "overhead_press.mp4", type: "reps" },
+                { name: "Incline Pushups", video: "incline_pushups.mp4", type: "reps" },
+                { name: "Dumbbell Triceps Extension", video: "triceps_extension.mp4", type: "reps" }
+            ],
+            pull: [
+                { name: "Single-Arm Dumbbell Row", video: "single_arm_row.mp4", type: "reps" },
+                { name: "Dumbbell Pullovers", video: "pullovers.mp4", type: "reps" },
+                { name: "Dumbbell Bicep Curls", video: "bicep_curls.mp4", type: "reps" },
+                { name: "Superman Holds", video: "superman_holds.mp4", type: "time" } // Time based!
+            ],
+            base: [
+                { name: "Dumbbell Goblet Squat", video: "goblet_squat.mp4", type: "reps" },
+                { name: "Dumbbell Romanian Deadlifts (RDLs)", video: "rdl.mp4", type: "reps" },
+                { name: "Dead Bugs", video: "dead_bugs.mp4", type: "time" }, // Time based!
+                { name: "Planks", video: "planks.mp4", type: "time" }         // Time based!
+            ]
+        };
+        
+        // This line grabs the variable we passed from Flask!
+        const currentDayType = "{{ workout_type }}"; 
+        
+        // Select the correct array from the Master Object
+        const routine = allRoutines[currentDayType];
+        
+        let currentExerciseIndex = 0;
+        let sessionData = [];
+        let currentSet = 1;
+        const baseVideoUrl = "{{ url_for('static', filename='videos/') }}";
+
+        // IMPORTANT: We need to set the initial title and video when the page loads
+        document.addEventListener("DOMContentLoaded", function() {
+            document.getElementById('exerciseTitle').innerText = routine[0].name;
+            document.getElementById('workoutVideo').src = baseVideoUrl + routine[0].video;
+        });
+
+        // --- Make sure the UI is correct when the page first loads ---
+        document.addEventListener("DOMContentLoaded", function() {
+            document.getElementById('exerciseTitle').innerText = routine[0].name;
+            document.getElementById('workoutVideo').src = baseVideoUrl + routine[0].video;
+            updateInputUI(); 
+
+            // NEW: Check if there is a saved workout in the browser's memory
+            const savedWorkout = localStorage.getItem('myWorkoutData');
+            if (savedWorkout) {
+                // Convert the JSON string back into a JavaScript array
+                sessionData = JSON.parse(savedWorkout);
+                console.log("Recovered previous session data!");
+            }
+        });
+        
+
+        // --- 2. Timer Logic ---
+        let globalSeconds = 0;
+        setInterval(() => {
+            globalSeconds++;
+            document.getElementById('globalTimer').innerText = formatTime(globalSeconds);
+        }, 1000);
+
+        let intervalSeconds = 0;
+        let intervalRunning = false;
+        let intervalProcess;
+
+        function startInterval() {
+            if (intervalRunning) {
+                clearInterval(intervalProcess);
+                intervalRunning = false;
+            } else {
+                intervalRunning = true;
+                intervalProcess = setInterval(() => {
+                    intervalSeconds++;
+                    document.getElementById('intervalTimer').innerText = formatTime(intervalSeconds);
+                }, 1000);
+            }
+        }
+
+        function resetInterval() {
+            clearInterval(intervalProcess);
+            intervalRunning = false;
+            intervalSeconds = 0;
+            document.getElementById('intervalTimer').innerText = "00:00";
+        }
+
+        function formatTime(totalSeconds) {
+            let m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+            let s = (totalSeconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        // --- 3. Tracking Logic ---
+        function logSet() {
+            const reps = document.getElementById('repsInput').value;
+            const weight = document.getElementById('weightInput').value;
+            const exercise = routine[currentExerciseIndex].name;
+
+            if (!reps || !weight) { alert("Enter both reps and weight before logging!"); return; }
+
+            sessionData.push(`- ${exercise} Set ${currentSet}: ${reps} reps @ ${weight}kg`);
+            document.getElementById('repsInput').value = '';
+            
+            currentSet++;
+            if (currentSet > 3) {
+                alert("That's 3 sets! Hit 'Next Exercise' when you're ready.");
+            } else {
+                document.getElementById('setIndicator').innerText = `Current Set: ${currentSet}/3`;
+            }
+        }
+
+        function nextExercise() {
+            currentExerciseIndex++;
+            if (currentExerciseIndex >= routine.length) {
+                alert("You've completed all exercises for today! Hit 'Finish Session' to get your Notion notes.");
+                currentExerciseIndex = routine.length - 1; 
+                return;
+            }
+            document.getElementById('exerciseTitle').innerText = routine[currentExerciseIndex].name;
+            const videoElement = document.getElementById('workoutVideo');
+            videoElement.src = baseVideoUrl + routine[currentExerciseIndex].video;
+            videoElement.play();
+            currentSet = 1;
+            document.getElementById('setIndicator').innerText = `Current Set: ${currentSet}/3`;
+        }
+
+        function finishWorkout() {
+            const outputBox = document.getElementById('notionOutput');
+            const totalTime = document.getElementById('globalTimer').innerText;
+            
+            let finalNote = `🏋️ ${routine[0].name.split(' ')[0]} Day Session\n⏱ Total Time: ${totalTime}\n\n`;
+            finalNote += sessionData.join('\n');
+            
+            outputBox.value = finalNote;
+            outputBox.style.display = 'block';
+
+            // NEW: Clear the browser memory now that we are done
+            localStorage.removeItem('myWorkoutData');
+            alert("Session saved for Notion! Local memory cleared for your next workout.");
+        }
+
+        // --- 4. Music Player Logic ---
+        let playlist = [];
+        let currentSongIndex = 0;
+        let isShuffle = false;
+        const audioPlayer = document.getElementById('audioPlayer');
+
+        // Listen for file uploads
+        document.getElementById('musicUpload').addEventListener('change', function(e) {
+            const files = e.target.files;
+            playlist = []; // Clear current playlist
+            
+            for(let i = 0; i < files.length; i++) {
+                playlist.push(files[i]);
+            }
+
+            if(playlist.length > 0) {
+                playSong(0); // Start playing the first song loaded
+            }
+        });
+
+        function playSong(index) {
+            if(playlist.length === 0) return;
+            currentSongIndex = index;
+            
+            const file = playlist[index];
+            // Creates a temporary URL to play the local file without uploading it
+            const objectUrl = URL.createObjectURL(file); 
+            
+            audioPlayer.src = objectUrl;
+            document.getElementById('currentSongDisplay').innerText = `Playing: ${file.name}`;
+            audioPlayer.play();
+        }
+
+        function nextSong() {
+            if(playlist.length === 0) return;
+
+            if(isShuffle) {
+                // Pick a random song that isn't the current one (if playlist > 1)
+                let newIndex;
+                do {
+                    newIndex = Math.floor(Math.random() * playlist.length);
+                } while (newIndex === currentSongIndex && playlist.length > 1);
+                playSong(newIndex);
+            } else {
+                // Play next, or loop back to start
+                let nextIndex = (currentSongIndex + 1) % playlist.length;
+                playSong(nextIndex);
+            }
+        }
+
+        function toggleShuffle() {
+            isShuffle = !isShuffle;
+            const btn = document.getElementById('shuffleBtn');
+            if(isShuffle) {
+                btn.innerText = "Shuffle: ON";
+                btn.classList.add('active');
+            } else {
+                btn.innerText = "Shuffle: OFF";
+                btn.classList.remove('active');
+            }
+        }
+
+        // Automatically play the next song when the current one ends
+        audioPlayer.addEventListener('ended', nextSong);
+
+        // --- UI Update Function ---
+        function updateInputUI() {
+            const currentEx = routine[currentExerciseIndex];
+            if (currentEx.type === 'time') {
+                document.getElementById('repsWeightGroup').style.display = 'none';
+                document.getElementById('timeGroup').style.display = 'block';
+            } else {
+                document.getElementById('repsWeightGroup').style.display = 'block';
+                document.getElementById('timeGroup').style.display = 'none';
+            }
+        }
+
+        // --- Update logSet to handle both types ---
+        function logSet() {
+            const currentEx = routine[currentExerciseIndex];
+            let logString = "";
+
+            if (currentEx.type === 'time') {
+                const seconds = document.getElementById('timeInput').value;
+                if (!seconds) { alert("Enter your time in seconds!"); return; }
+                logString = `- ${currentEx.name} Set ${currentSet}: ${seconds} seconds`;
+                document.getElementById('timeInput').value = ''; // Clear input
+            } else {
+                const reps = document.getElementById('repsInput').value;
+                const weight = document.getElementById('weightInput').value;
+                if (!reps || !weight) { alert("Enter both reps and weight!"); return; }
+                logString = `- ${currentEx.name} Set ${currentSet}: ${reps} reps @ ${weight}kg`;
+                document.getElementById('repsInput').value = ''; // Clear input
+            }
+
+            sessionData.push(logString);
+
+            // NEW: Save the updated array to LocalStorage immediately
+            localStorage.setItem('myWorkoutData', JSON.stringify(sessionData));
+            
+            currentSet++;
+            if (currentSet > 3) {
+                alert("That's 3 sets! Hit 'Next Exercise' when you're ready.");
+            } else {
+                document.getElementById('setIndicator').innerText = `Current Set: ${currentSet}/3`;
+            }
+        }
+
+        // --- Update nextExercise to call the UI toggle ---
+        function nextExercise() {
+            currentExerciseIndex++;
+            if (currentExerciseIndex >= routine.length) {
+                alert("You've completed all exercises! Hit 'Finish Session'.");
+                currentExerciseIndex = routine.length - 1; 
+                return;
+            }
+            
+            document.getElementById('exerciseTitle').innerText = routine[currentExerciseIndex].name;
+            const videoElement = document.getElementById('workoutVideo');
+            videoElement.src = baseVideoUrl + routine[currentExerciseIndex].video;
+            videoElement.play();
+            
+            currentSet = 1;
+            document.getElementById('setIndicator').innerText = `Current Set: ${currentSet}/3`;
+            
+            // Trigger the UI change!
+            updateInputUI();
+        }
+
+        // --- Make sure the UI is correct when the page first loads ---
+        document.addEventListener("DOMContentLoaded", function() {
+            document.getElementById('exerciseTitle').innerText = routine[0].name;
+            document.getElementById('workoutVideo').src = baseVideoUrl + routine[0].video;
+            updateInputUI(); // Set the right inputs for the very first exercise
+        });
+
+    </script>
+</body>
+</html>

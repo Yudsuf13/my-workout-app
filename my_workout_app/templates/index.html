@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Workout Tracker</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #121212;
+            font-family: Arial, sans-serif;
+            gap: 20px; /* Adds space between buttons */
+        }
+        .start-btn {
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 1.5rem;
+            border-radius: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: 0.3s;
+            width: 250px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .push { background-color: #ff4757; }
+        .push:hover { background-color: #ff6b81; transform: scale(1.05); }
+        
+        .pull { background-color: #1e90ff; }
+        .pull:hover { background-color: #70a1ff; transform: scale(1.05); }
+        
+        .base { background-color: #2ed573; }
+        .base:hover { background-color: #7bed9f; transform: scale(1.05); }
+    </style>
+</head>
+<body>
+
+    <a href="/workout/push" class="start-btn push">Day 1: Push</a>
+    <a href="/workout/pull" class="start-btn pull">Day 2: Pull</a>
+    <a href="/workout/base" class="start-btn base">Day 3: Base</a>
+
+</body>
+</html>
