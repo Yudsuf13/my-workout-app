@@ -166,6 +166,9 @@
                 <audio id="audioPlayer" controls></audio>
             </div>
         </div>
+
+        <a href="/history" class="start-btn">View History</a>
+        <a href="/" class="start-btn">Back Home</a>
     </div>
 
     <script>
@@ -264,23 +267,64 @@
         }
 
         // --- 3. Tracking Logic ---
-        function logSet() {
-            const reps = document.getElementById('repsInput').value;
-            const weight = document.getElementById('weightInput').value;
-            const exercise = routine[currentExerciseIndex].name;
+        async function logSet() {
+    const currentEx = routine[currentExerciseIndex];
+    let reps = null, weight = null, duration = null;
+    let logString = ""; 
 
-            if (!reps || !weight) { alert("Enter both reps and weight before logging!"); return; }
+    // 1. Collect data based on the exercise type
+    if (currentEx.type === 'time') {
+        duration = document.getElementById('timeInput').value;
+        if (!duration) { alert("Enter your time in seconds!"); return; }
+        logString = `- ${currentEx.name} Set ${currentSet}: ${duration} seconds`;
+        document.getElementById('timeInput').value = ''; 
+    } else {
+        reps = document.getElementById('repsInput').value;
+        weight = document.getElementById('weightInput').value;
+        if (!reps || !weight) { alert("Enter both reps and weight!"); return; }
+        logString = `- ${currentEx.name} Set ${currentSet}: ${reps} reps @ ${weight}kg`;
+        document.getElementById('repsInput').value = ''; 
+    }
 
-            sessionData.push(`- ${exercise} Set ${currentSet}: ${reps} reps @ ${weight}kg`);
-            document.getElementById('repsInput').value = '';
+    // 2. Prepare the data for the Database
+    const payload = {
+        day_type: currentDayType,
+        exercise_name: currentEx.name,
+        set_number: currentSet,
+        reps: reps,
+        weight: weight,
+        duration: duration
+    };
+
+    // 3. SEND to Flask Database
+    try {
+        const response = await fetch('/log_set', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+            console.log("Saved to DB!");
+            // Still save to local list for your Notion summary at the end
+            sessionData.push(logString);
+            localStorage.setItem('myWorkoutData', JSON.stringify(sessionData));
             
+            // Advance UI
             currentSet++;
             if (currentSet > 3) {
                 alert("That's 3 sets! Hit 'Next Exercise' when you're ready.");
             } else {
                 document.getElementById('setIndicator').innerText = `Current Set: ${currentSet}/3`;
             }
+        } else {
+            alert("Database error: Could not save set.");
         }
+    } catch (error) {
+        console.error("Error:", error);
+        alert("Server connection failed. Is app.py running?");
+    }
+}
 
         function nextExercise() {
             currentExerciseIndex++;
@@ -389,36 +433,6 @@
             }
         }
 
-        // --- Update logSet to handle both types ---
-        function logSet() {
-            const currentEx = routine[currentExerciseIndex];
-            let logString = "";
-
-            if (currentEx.type === 'time') {
-                const seconds = document.getElementById('timeInput').value;
-                if (!seconds) { alert("Enter your time in seconds!"); return; }
-                logString = `- ${currentEx.name} Set ${currentSet}: ${seconds} seconds`;
-                document.getElementById('timeInput').value = ''; // Clear input
-            } else {
-                const reps = document.getElementById('repsInput').value;
-                const weight = document.getElementById('weightInput').value;
-                if (!reps || !weight) { alert("Enter both reps and weight!"); return; }
-                logString = `- ${currentEx.name} Set ${currentSet}: ${reps} reps @ ${weight}kg`;
-                document.getElementById('repsInput').value = ''; // Clear input
-            }
-
-            sessionData.push(logString);
-
-            // NEW: Save the updated array to LocalStorage immediately
-            localStorage.setItem('myWorkoutData', JSON.stringify(sessionData));
-            
-            currentSet++;
-            if (currentSet > 3) {
-                alert("That's 3 sets! Hit 'Next Exercise' when you're ready.");
-            } else {
-                document.getElementById('setIndicator').innerText = `Current Set: ${currentSet}/3`;
-            }
-        }
 
         // --- Update nextExercise to call the UI toggle ---
         function nextExercise() {

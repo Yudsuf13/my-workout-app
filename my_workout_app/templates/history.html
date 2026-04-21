@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Workout History</title>
+    <style>
+        body { background-color: #121212; color: white; font-family: Arial; padding: 20px; }
+        .log-card { background: #2d2d2d; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
+        .timestamp { color: #888; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    <h2>🏋️ My Workout History</h2>
+    <a href="/" style="color: #00a8ff; text-decoration: none;">← Back Home</a>
+    <hr style="border-color: #333; margin: 20px 0;">
+
+    {% for log in logs %}
+        <div class="log-card">
+            <div class="timestamp">{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</div>
+            <strong>{{ log.day_type | capitalize }} Day:</strong> {{ log.exercise_name }} 
+            (Set {{ log.set_number }})
+            
+            {% if log.reps %}
+                - {{ log.reps }} reps @ {{ log.weight }}kg
+            {% else %}
+                - {{ log.duration }} seconds
+            {% endif %}
+        </div>
+    {% else %}
+        <p>No workouts logged yet. Go lift something!</p>
+    {% endfor %}
+
+</body>
+</html>
