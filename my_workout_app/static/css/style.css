@@ -1,5 +1,238 @@
+/* Global Styles */
 body {
-    font-family: Arial, sans-serif;
+    background-color: #121212;
+    color: #ffffff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Layout */
+.main-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    width: 100%;
+    max-width: 1200px;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.left-column, .right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+}
+
+@media (min-width: 1000px) {
+    .left-column { max-width: 650px; }
+    .right-column { max-width: 350px; }
+}
+
+/* Cards */
+.panel {
+    background: #2d2d2d;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+/* Timer Section */
+.header {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.timer-box {
     text-align: center;
-    margin: 50px;
+    flex: 1;
+    min-width: 120px;
+}
+
+.timer-display {
+    font-size: 1.8rem;
+    font-weight: bold;
+    font-family: monospace;
+    margin: 5px 0;
+}
+
+#globalTimer { color: #4cd137; }
+#intervalTimer { color: #e84118; }
+
+/* Buttons */
+button, .start-btn {
+    background-color: #00a8ff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    margin: 5px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: bold;
+}
+
+button:hover, .start-btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.05);
+}
+
+.log-btn {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    font-size: 1rem;
+}
+
+.next-btn { background-color: #9c88ff; }
+.finish-btn { background-color: #44bd32; }
+.danger-btn { background-color: #e84118; }
+
+/* Video Container */
+.video-container video {
+    width: 100%;
+    border-radius: 12px;
+    border: 2px solid #353b48;
+    background: #000;
+}
+
+/* Inputs */
+input[type="number"], input[type="file"] {
+    padding: 10px;
+    margin: 8px 0;
+    background: #353b48;
+    border: 1px solid #718093;
+    color: white;
+    border-radius: 6px;
+    width: calc(50% - 12px);
+}
+
+input[type="file"] { width: 100%; }
+
+/* Music Player */
+.music-controls {
+    display: flex;
+    gap: 10px;
+    margin: 10px 0;
+    flex-wrap: wrap;
+}
+
+.shuffle-btn.active {
+    background-color: #4cd137;
+}
+
+.song-title {
+    font-size: 0.9rem;
+    color: #dcdde1;
+    word-break: break-all;
+    margin: 10px 0;
+}
+
+#audioPlayer {
+    width: 100%;
+    margin-top: 10px;
+}
+
+/* Notion Output */
+#notionOutput {
+    width: 100%;
+    height: 200px;
+    margin-top: 15px;
+    background: #353b48;
+    color: white;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-family: monospace;
+    resize: vertical;
+    display: none;
+}
+
+.copy-btn {
+    background-color: #8c7ae6;
+    margin-top: 5px;
+    width: 100%;
+}
+
+/* Links */
+a {
+    text-decoration: none;
+    display: inline-block;
+}
+
+/* Home Page Buttons */
+.home-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.workout-btn {
+    width: 250px;
+    text-align: center;
+    padding: 20px;
+    font-size: 1.3rem;
+    font-weight: bold;
+    border-radius: 12px;
+}
+
+.push { background-color: #ff4757; }
+.pull { background-color: #1e90ff; }
+.base { background-color: #2ed573; }
+.history-btn { background-color: #7f8c8d; }
+
+/* Mobile-friendly adjustments */
+@media (max-width: 768px) {
+    .main-container {
+        flex-direction: column;
+        padding: 10px;
+    }
+    .left-column, .right-column {
+        width: 100%;
+        margin-right: 0;
+    }
+    .panel.header {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .timer-box {
+        width: 100%;
+    }
+    .week-grid {
+        gap: 5px;
+    }
+    .day-card {
+        padding: 8px 2px;
+    }
+    .day-date {
+        font-size: 1.2rem;
+    }
+    .log-actions {
+        position: static;
+        margin-top: 10px;
+        justify-content: flex-end;
+    }
+    .log-card {
+        padding: 12px;
+    }
+    button, .log-btn, .copy-btn {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    .home-buttons {
+        flex-direction: column;
+    }
+    .workout-btn {
+        width: 100%;
+        text-align: center;
+    }
 }

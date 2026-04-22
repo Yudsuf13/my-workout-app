@@ -3,465 +3,519 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Push Day Setup</title>
+    <title>Workout Tracker - {{ workout_type | capitalize }} Day</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        body {
-            background-color: #1e1e1e;
-            color: #ffffff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
+        /* Additional styles for new elements */
+        .youtube-link {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 0.9rem;
+            color: #ff4757;
+            text-decoration: none;
+            border-bottom: 1px dashed #ff4757;
+        }
+        .rest-control {
             display: flex;
-            flex-direction: column;
             align-items: center;
+            gap: 8px;
+            margin-top: 5px;
         }
-        
-        /* Layout for the main content areas */
-        .main-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            width: 100%;
-            max-width: 1000px;
-            justify-content: center;
-            align-items: flex-start;
-        }
-
-        .left-column, .right-column {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            max-width: 600px;
-            gap: 20px;
-        }
-
-        @media (min-width: 1000px) {
-            .left-column { max-width: 600px; }
-            .right-column { max-width: 350px; }
-        }
-
-        .panel {
-            background: #2d2d2d;
-            padding: 20px;
-            border-radius: 8px;
-            box-sizing: border-box;
-            width: 100%;
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-        }
-        
-        .timer-box { text-align: center; }
-        .timer-display { font-size: 1.5rem; font-weight: bold; color: #4cd137; }
-        
-        button {
-            background-color: #00a8ff;
+        .rest-control input {
+            width: 70px;
+            padding: 5px;
+            background: #1e1e1e;
             color: white;
-            border: none;
-            padding: 8px 15px;
-            margin: 5px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: 0.2s;
+            border: 1px solid #444;
+            border-radius: 4px;
         }
-        button:hover { background-color: #0097e6; }
-        
-        .video-container video {
+        .comment-box {
+            margin-top: 10px;
+        }
+        .comment-box textarea {
             width: 100%;
-            border-radius: 8px;
-            border: 2px solid #353b48;
+            padding: 8px;
+            background: #1e1e1e;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 6px;
+            resize: vertical;
         }
-
-        input[type="number"] {
+        .gif-container {
+            text-align: center;
+            background: #1a1a1a;
+            border-radius: 8px;
             padding: 10px;
-            margin: 5px 0;
-            width: calc(50% - 15px);
-            background: #353b48;
-            border: 1px solid #718093;
-            color: white;
-            border-radius: 5px;
         }
-        
-        .log-btn { width: 100%; padding: 15px; background-color: #e1b12c; font-size: 1.1rem; margin-top: 10px; }
-        .log-btn:hover { background-color: #fbc531; }
-        .next-btn { background-color: #9c88ff; }
-        .next-btn:hover { background-color: #8c7ae6; }
-        
-        #notionOutput {
-            width: 100%; height: 150px; margin-top: 20px; background: #353b48;
-            color: white; padding: 10px; border: none; border-radius: 5px; display: none;
+        .gif-container img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 6px;
         }
-
-        /* Music Player Styles */
-        .music-controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-        #audioPlayer { width: 100%; margin-top: 10px; }
-        .shuffle-btn { background-color: #718093; }
-        .shuffle-btn.active { background-color: #4cd137; }
-        .song-title { font-size: 0.9rem; color: #dcdde1; margin-top: 10px; word-break: break-all; }
-        input[type="file"] { margin-bottom: 10px; }
     </style>
 </head>
 <body>
-
     <div class="main-container">
         <div class="left-column">
-            
             <div class="panel header">
                 <div class="timer-box">
-                    <div>Session Time</div>
+                    <div>🏁 Session Time</div>
                     <div class="timer-display" id="globalTimer">00:00</div>
                 </div>
-                <div class="timer-box">
-                    <div>Rest Timer</div>
-                    <div class="timer-display" id="intervalTimer" style="color: #e84118;">00:00</div>
-                    <button onclick="startInterval()">Start/Stop</button>
-                    <button onclick="resetInterval()">Reset</button>
+                <div class="timer-box" id="restTimerBox">
+                    <div>⏱️ <span id="timerLabel">Rest Timer</span></div>
+                    <div class="timer-display" id="intervalTimer">00:00</div>
+                    <div class="rest-control">
+                        <label for="restDuration">Default rest:</label>
+                        <input type="number" id="restDuration" value="60" min="5" max="300"> sec
+                    </div>
+                    <button onclick="startInterval()">▶ Start/Stop</button>
+                    <button onclick="resetInterval()">🔄 Reset</button>
                 </div>
             </div>
 
-            <div class="video-container">
-                <video id="workoutVideo" loop controls playsinline>
-                    <source id="videoSource" src="{{ url_for('static', filename='videos/floor_press.mp4') }}" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
+            <!-- GIF Container (replaces video) -->
+            <div class="gif-container panel">
+                <img id="exerciseGif" src="" alt="Exercise demonstration" style="display: block; margin: 0 auto;">
             </div>
 
             <div class="panel">
-            <h2 id="exerciseTitle">Dumbbell Floor Press</h2>
-            <div id="setIndicator">Current Set: 1/3</div>
-            
-            <div id="repsWeightGroup">
-                <input type="number" id="repsInput" placeholder="Reps (e.g., 8)">
-                <input type="number" id="weightInput" placeholder="Weight (e.g., 20)">
-            </div>
-            
-            <div id="timeGroup" style="display: none;">
-                <input type="number" id="timeInput" placeholder="Seconds (e.g., 60)">
-            </div>
-            
-            <button class="log-btn" onclick="logSet()">Log Set</button>
-            <button class="log-btn next-btn" onclick="nextExercise()">Next Exercise ➔</button>
-            <button class="log-btn" style="background-color: #44bd32;" onclick="finishWorkout()">Finish Session</button>
+                <div id="statusMessage" style="color: #00a8ff; font-weight: bold; height: 20px; margin-bottom: 10px; text-align: center;"></div>
+                
+                <h2 id="exerciseTitle">Loading...
+                    <a href="#" id="youtubeLink" target="_blank" class="youtube-link" style="display: none;">📺 Watch Tutorial</a>
+                </h2>
+                <div id="setIndicator">Set: 1/3</div>
+                
+                <div id="repsWeightGroup">
+                    <input type="number" id="repsInput" placeholder="🏋️ Reps" min="1">
+                    <input type="number" id="weightInput" placeholder="⚖️ Weight (kg)" step="0.5" min="0">
+                </div>
+                
+                <div id="timeGroup" style="display: none;">
+                    <input type="number" id="timeInput" placeholder="⏱️ Seconds" min="1">
+                </div>
 
-            <textarea id="notionOutput" readonly></textarea>
-        </div>
+                <!-- NEW: Comment box -->
+                <div class="comment-box">
+                    <textarea id="commentInput" placeholder="📝 Notes (optional) – how did it feel?" rows="2"></textarea>
+                </div>
+                
+                <button class="log-btn" onclick="logSet()">📝 Log Set</button>
+                <button class="log-btn next-btn" onclick="nextExercise()">⏩ Next Exercise</button>
+                <button class="log-btn finish-btn" onclick="finishWorkout()">✅ Finish Session</button>
+
+                <textarea id="notionOutput" readonly style="display:none;" placeholder="Your Notion summary will appear here..."></textarea>
+                <button class="copy-btn" onclick="copyToClipboard()" style="display: none;" id="copyBtn">📋 Copy to Clipboard</button>
+            </div>
         </div>
 
         <div class="right-column">
             <div class="panel">
                 <h2>🎵 Music Box</h2>
-                <p style="font-size: 0.8rem; color: #a4b0be;">Select your local MP3s to build a session playlist.</p>
+                <p style="font-size: 0.8rem; color: #a4b0be;">Select MP3 files to build your workout playlist</p>
                 
-                <input type="file" id="musicUpload" multiple>
+                <input type="file" id="musicUpload" accept="audio/mpeg" multiple>
                 
                 <div class="music-controls">
-                    <button onclick="nextSong()">Next Track ➔</button>
-                    <button id="shuffleBtn" class="shuffle-btn" onclick="toggleShuffle()">Shuffle: OFF</button>
+                    <button onclick="nextSong()">⏭ Next Track</button>
+                    <button id="shuffleBtn" class="shuffle-btn" onclick="toggleShuffle()">🔀 Shuffle: OFF</button>
                 </div>
 
                 <div class="song-title" id="currentSongDisplay">No song selected</div>
-                
-                <audio id="audioPlayer" controls></audio>
+                <audio id="audioPlayer" controls preload="metadata"></audio>
+            </div>
+
+            <div class="panel" style="text-align: center;">
+                <a href="/history" class="start-btn" style="display: inline-block; margin: 5px;">📊 View History</a>
+                <a href="/" class="start-btn" style="display: inline-block; margin: 5px;">🏠 Back Home</a>
             </div>
         </div>
-
-        <a href="/history" class="start-btn">View History</a>
-        <a href="/" class="start-btn">Back Home</a>
     </div>
 
     <script>
-        // --- 1. Exercise Setup ---
-        // We now have a Master Object holding all 3 days
-        // --- 1. Exercise Setup ---
-        const allRoutines = {
-            push: [
-                { name: "Dumbbell Floor Press", video: "floor_press.mp4", type: "reps" },
-                { name: "Dumbbell Overhead Press", video: "overhead_press.mp4", type: "reps" },
-                { name: "Incline Pushups", video: "incline_pushups.mp4", type: "reps" },
-                { name: "Dumbbell Triceps Extension", video: "triceps_extension.mp4", type: "reps" }
-            ],
-            pull: [
-                { name: "Single-Arm Dumbbell Row", video: "single_arm_row.mp4", type: "reps" },
-                { name: "Dumbbell Pullovers", video: "pullovers.mp4", type: "reps" },
-                { name: "Dumbbell Bicep Curls", video: "bicep_curls.mp4", type: "reps" },
-                { name: "Superman Holds", video: "superman_holds.mp4", type: "time" } // Time based!
-            ],
-            base: [
-                { name: "Dumbbell Goblet Squat", video: "goblet_squat.mp4", type: "reps" },
-                { name: "Dumbbell Romanian Deadlifts (RDLs)", video: "rdl.mp4", type: "reps" },
-                { name: "Dead Bugs", video: "dead_bugs.mp4", type: "time" }, // Time based!
-                { name: "Planks", video: "planks.mp4", type: "time" }         // Time based!
-            ]
-        };
-        
-        // This line grabs the variable we passed from Flask!
-        const currentDayType = "{{ workout_type }}"; 
-        
-        // Select the correct array from the Master Object
-        const routine = allRoutines[currentDayType];
-        
-        let currentExerciseIndex = 0;
-        let sessionData = [];
-        let currentSet = 1;
-        const baseVideoUrl = "{{ url_for('static', filename='videos/') }}";
-
-        // IMPORTANT: We need to set the initial title and video when the page loads
-        document.addEventListener("DOMContentLoaded", function() {
-            document.getElementById('exerciseTitle').innerText = routine[0].name;
-            document.getElementById('workoutVideo').src = baseVideoUrl + routine[0].video;
-        });
-
-        // --- Make sure the UI is correct when the page first loads ---
-        document.addEventListener("DOMContentLoaded", function() {
-            document.getElementById('exerciseTitle').innerText = routine[0].name;
-            document.getElementById('workoutVideo').src = baseVideoUrl + routine[0].video;
-            updateInputUI(); 
-
-            // NEW: Check if there is a saved workout in the browser's memory
-            const savedWorkout = localStorage.getItem('myWorkoutData');
-            if (savedWorkout) {
-                // Convert the JSON string back into a JavaScript array
-                sessionData = JSON.parse(savedWorkout);
-                console.log("Recovered previous session data!");
-            }
-        });
-        
-
-        // --- 2. Timer Logic ---
-        let globalSeconds = 0;
-        setInterval(() => {
-            globalSeconds++;
-            document.getElementById('globalTimer').innerText = formatTime(globalSeconds);
-        }, 1000);
-
-        let intervalSeconds = 0;
-        let intervalRunning = false;
-        let intervalProcess;
-
-        function startInterval() {
-            if (intervalRunning) {
-                clearInterval(intervalProcess);
-                intervalRunning = false;
-            } else {
-                intervalRunning = true;
-                intervalProcess = setInterval(() => {
-                    intervalSeconds++;
-                    document.getElementById('intervalTimer').innerText = formatTime(intervalSeconds);
-                }, 1000);
-            }
-        }
-
-        function resetInterval() {
-            clearInterval(intervalProcess);
-            intervalRunning = false;
-            intervalSeconds = 0;
-            document.getElementById('intervalTimer').innerText = "00:00";
-        }
-
-        function formatTime(totalSeconds) {
-            let m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-            let s = (totalSeconds % 60).toString().padStart(2, '0');
-            return `${m}:${s}`;
-        }
-
-        // --- 3. Tracking Logic ---
-        async function logSet() {
-    const currentEx = routine[currentExerciseIndex];
-    let reps = null, weight = null, duration = null;
-    let logString = ""; 
-
-    // 1. Collect data based on the exercise type
-    if (currentEx.type === 'time') {
-        duration = document.getElementById('timeInput').value;
-        if (!duration) { alert("Enter your time in seconds!"); return; }
-        logString = `- ${currentEx.name} Set ${currentSet}: ${duration} seconds`;
-        document.getElementById('timeInput').value = ''; 
-    } else {
-        reps = document.getElementById('repsInput').value;
-        weight = document.getElementById('weightInput').value;
-        if (!reps || !weight) { alert("Enter both reps and weight!"); return; }
-        logString = `- ${currentEx.name} Set ${currentSet}: ${reps} reps @ ${weight}kg`;
-        document.getElementById('repsInput').value = ''; 
-    }
-
-    // 2. Prepare the data for the Database
-    const payload = {
-        day_type: currentDayType,
-        exercise_name: currentEx.name,
-        set_number: currentSet,
-        reps: reps,
-        weight: weight,
-        duration: duration
+    // ---------- WORKOUT DATA ----------
+    const allRoutines = {
+        push: [
+            { name: "Dumbbell Floor Press", gif: "floor_press.gif", youtube: "https://youtu.be/example1", type: "reps" },
+            { name: "Dumbbell Overhead Press", gif: "overhead_press.gif", youtube: "https://youtu.be/example2", type: "reps" },
+            { name: "Incline Pushups", gif: "incline_pushups.gif", youtube: "https://youtu.be/example3", type: "reps" },
+            { name: "Dumbbell Triceps Extension", gif: "triceps_extension.gif", youtube: "https://youtu.be/example4", type: "reps" }
+        ],
+        pull: [
+            { name: "Single-Arm Dumbbell Row", gif: "single_arm_row.gif", youtube: "https://youtu.be/example5", type: "reps" },
+            { name: "Dumbbell Pullovers", gif: "pullovers.gif", youtube: "https://youtu.be/example6", type: "reps" },
+            { name: "Dumbbell Bicep Curls", gif: "bicep_curls.gif", youtube: "https://youtu.be/example7", type: "reps" },
+            { name: "Superman Holds", gif: "superman_holds.gif", youtube: "https://youtu.be/example8", type: "time" }
+        ],
+        base: [
+            { name: "Dumbbell Goblet Squat", gif: "goblet_squat.gif", youtube: "https://youtu.be/example9", type: "reps" },
+            { name: "Dumbbell Romanian Deadlifts", gif: "rdl.gif", youtube: "https://youtu.be/example10", type: "reps" },
+            { name: "Dead Bugs", gif: "dead_bugs.gif", youtube: "https://youtu.be/example11", type: "time" },
+            { name: "Planks", gif: "planks.gif", youtube: "https://youtu.be/example12", type: "time" }
+        ]
     };
 
-    // 3. SEND to Flask Database
-    try {
-        const response = await fetch('/log_set', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+    const currentDayType = "{{ workout_type }}";
+    const routine = allRoutines[currentDayType];
+    
+    if (!routine) {
+        window.location.href = "/";
+    }
+
+    let currentExerciseIndex = 0;
+    let currentSet = 1;
+    let sessionData = [];
+    const baseGifUrl = "{{ url_for('static', filename='gifs/') }}";
+    let sessionFinished = false;
+
+    // ---------- REMEMBER LAST USED REPS/WEIGHT ----------
+    let lastUsedValues = {};
+
+    // ---------- TIMER VARIABLES ----------
+    let globalSeconds = 0;
+    let globalInterval = setInterval(() => {
+        if (!sessionFinished) {
+            globalSeconds++;
+            document.getElementById('globalTimer').innerText = formatTime(globalSeconds);
+        }
+    }, 1000);
+
+    // Interval / Countdown timer
+    let intervalSeconds = 0;
+    let intervalRunning = false;
+    let intervalProcess = null;
+    let isCountdownMode = false;
+    let countdownTarget = 0;
+
+    // Audio beep
+    let audioCtx = null;
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+    function playBeep() {
+        initAudio();
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.frequency.value = 880;
+        oscillator.type = 'sine';
+        gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.3);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.3);
+    }
+
+    // ---------- UI FEEDBACK ----------
+    function showStatus(message, isError = false) {
+        const statusDiv = document.getElementById('statusMessage');
+        statusDiv.innerText = message;
+        statusDiv.style.color = isError ? "#ff4757" : "#00a8ff";
+        setTimeout(() => { statusDiv.innerText = ""; }, 3000);
+    }
+
+    // ---------- TIMER FUNCTIONS ----------
+    function formatTime(totalSeconds) {
+        let m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+        let s = (totalSeconds % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+    }
+
+    function updateTimerLabelAndMode() {
+        const ex = routine[currentExerciseIndex];
+        const label = document.getElementById('timerLabel');
+        const timerDisplay = document.getElementById('intervalTimer');
+        if (ex.type === 'time') {
+            label.innerText = 'Hold Timer (Countdown)';
+            isCountdownMode = true;
+            countdownTarget = 40;
+            intervalSeconds = countdownTarget;
+            timerDisplay.innerText = formatTime(intervalSeconds);
+        } else {
+            label.innerText = 'Rest Timer';
+            isCountdownMode = false;
+            intervalSeconds = 0;
+            timerDisplay.innerText = formatTime(0);
+        }
+        stopIntervalTimer();
+    }
+
+    function stopIntervalTimer() {
+        if (intervalProcess) {
+            clearInterval(intervalProcess);
+            intervalProcess = null;
+        }
+        intervalRunning = false;
+    }
+
+    function startInterval() {
+        if (intervalRunning) {
+            stopIntervalTimer();
+            return;
+        }
         
-        if (response.ok) {
-            console.log("Saved to DB!");
-            // Still save to local list for your Notion summary at the end
-            sessionData.push(logString);
-            localStorage.setItem('myWorkoutData', JSON.stringify(sessionData));
-            
-            // Advance UI
-            currentSet++;
-            if (currentSet > 3) {
-                alert("That's 3 sets! Hit 'Next Exercise' when you're ready.");
-            } else {
-                document.getElementById('setIndicator').innerText = `Current Set: ${currentSet}/3`;
+        if (isCountdownMode) {
+            if (intervalSeconds <= 0) {
+                intervalSeconds = countdownTarget;
+                document.getElementById('intervalTimer').innerText = formatTime(intervalSeconds);
+            }
+            intervalRunning = true;
+            intervalProcess = setInterval(() => {
+                if (intervalSeconds > 0) {
+                    intervalSeconds--;
+                    document.getElementById('intervalTimer').innerText = formatTime(intervalSeconds);
+                    if (intervalSeconds === 0) {
+                        playBeep();
+                        stopIntervalTimer();
+                        showStatus("Time's up! Great hold.");
+                    }
+                } else {
+                    stopIntervalTimer();
+                }
+            }, 1000);
+        } else {
+            intervalRunning = true;
+            intervalProcess = setInterval(() => {
+                intervalSeconds++;
+                document.getElementById('intervalTimer').innerText = formatTime(intervalSeconds);
+            }, 1000);
+        }
+    }
+
+    function resetInterval() {
+        stopIntervalTimer();
+        if (isCountdownMode) {
+            intervalSeconds = countdownTarget;
+        } else {
+            intervalSeconds = 0;
+        }
+        document.getElementById('intervalTimer').innerText = formatTime(intervalSeconds);
+    }
+
+    // ---------- UI HELPERS ----------
+    function updateInputUI() {
+        const ex = routine[currentExerciseIndex];
+        const isTimeBased = ex.type === 'time';
+        document.getElementById('repsWeightGroup').style.display = isTimeBased ? 'none' : 'block';
+        document.getElementById('timeGroup').style.display = isTimeBased ? 'block' : 'none';
+        updateTimerLabelAndMode();
+    }
+
+    function loadExercise(index) {
+        const ex = routine[index];
+        document.getElementById('exerciseTitle').innerHTML = `${ex.name} <a href="${ex.youtube}" target="_blank" class="youtube-link">📺 Watch Tutorial</a>`;
+        document.getElementById('exerciseGif').src = baseGifUrl + ex.gif;
+        document.getElementById('setIndicator').innerText = `Set: ${currentSet}/3`;
+        
+        // Clear input fields
+        document.getElementById('repsInput').value = '';
+        document.getElementById('weightInput').value = '';
+        document.getElementById('timeInput').value = '';
+        document.getElementById('commentInput').value = '';
+        
+        updateInputUI();
+    }
+
+    // ---------- LOGGING (FIXED) ----------
+    async function logSet() {
+        if (sessionFinished) {
+            showStatus("Session already finished!", true);
+            return;
+        }
+        
+        if (currentSet > 3) {
+            showStatus("3 sets complete. Move to next exercise.", true);
+            return;
+        }
+
+        const currentEx = routine[currentExerciseIndex];
+        let reps = null, weight = null, duration = null;
+        
+        if (currentEx.type === 'time') {
+            duration = document.getElementById('timeInput').value;
+            if (!duration || duration <= 0) {
+                showStatus("Enter valid seconds.", true);
+                return;
             }
         } else {
-            alert("Database error: Could not save set.");
+            reps = document.getElementById('repsInput').value;
+            weight = document.getElementById('weightInput').value;
+            if (!reps || reps <= 0 || !weight || weight <= 0) {
+                showStatus("Enter reps and weight.", true);
+                return;
+            }
         }
-    } catch (error) {
-        console.error("Error:", error);
-        alert("Server connection failed. Is app.py running?");
+
+        const comment = document.getElementById('commentInput').value.trim();
+
+        const payload = {
+            day_type: currentDayType,
+            exercise_name: currentEx.name,
+            set_number: currentSet,
+            reps: reps,
+            weight: weight,
+            duration: duration,
+            comment: comment
+        };
+
+        try {
+            const response = await fetch('/log_set', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            if (response.ok) {
+                let logText = `${currentEx.name} Set ${currentSet}: `;
+                logText += currentEx.type === 'time' ? `${duration}s` : `${reps} reps @ ${weight}kg`;
+                if (comment) logText += ` (Note: ${comment})`;
+                
+                sessionData.push(logText);
+                localStorage.setItem('myWorkoutData', JSON.stringify(sessionData));
+                
+                // Save values for next set
+                if (currentEx.type !== 'time') {
+                    lastUsedValues[currentEx.name] = { reps: reps, weight: weight };
+                }
+                
+                document.getElementById('commentInput').value = '';
+                
+                if (currentSet === 3) {
+                    showStatus(`✅ Completed 3 sets of ${currentEx.name}!`);
+                } else {
+                    showStatus(`Set ${currentSet} logged!`);
+                    currentSet++;
+                    document.getElementById('setIndicator').innerText = `Set: ${currentSet}/3`;
+                    
+                    // Pre-fill for next set
+                    if (currentEx.type !== 'time') {
+                        const saved = lastUsedValues[currentEx.name];
+                        if (saved) {
+                            document.getElementById('repsInput').value = saved.reps;
+                            document.getElementById('weightInput').value = saved.weight;
+                        }
+                    }
+                }
+            } else {
+                showStatus("Database error.", true);
+            }
+        } catch (error) {
+            showStatus("Server connection failed.", true);
+        }
     }
-}
 
-        function nextExercise() {
-            currentExerciseIndex++;
-            if (currentExerciseIndex >= routine.length) {
-                alert("You've completed all exercises for today! Hit 'Finish Session' to get your Notion notes.");
-                currentExerciseIndex = routine.length - 1; 
-                return;
-            }
-            document.getElementById('exerciseTitle').innerText = routine[currentExerciseIndex].name;
-            const videoElement = document.getElementById('workoutVideo');
-            videoElement.src = baseVideoUrl + routine[currentExerciseIndex].video;
-            videoElement.play();
-            currentSet = 1;
-            document.getElementById('setIndicator').innerText = `Current Set: ${currentSet}/3`;
+    // ---------- EXERCISE NAVIGATION ----------
+    function nextExercise() {
+        if (sessionFinished) return;
+        
+        if (currentExerciseIndex + 1 >= routine.length) {
+            showStatus("🎉 All exercises finished!");
+            return;
         }
+        
+        currentExerciseIndex++;
+        currentSet = 1;
+        loadExercise(currentExerciseIndex);
+        showStatus("Moving to next exercise...");
+    }
 
-        function finishWorkout() {
-            const outputBox = document.getElementById('notionOutput');
-            const totalTime = document.getElementById('globalTimer').innerText;
-            
-            let finalNote = `🏋️ ${routine[0].name.split(' ')[0]} Day Session\n⏱ Total Time: ${totalTime}\n\n`;
-            finalNote += sessionData.join('\n');
-            
-            outputBox.value = finalNote;
-            outputBox.style.display = 'block';
-
-            // NEW: Clear the browser memory now that we are done
-            localStorage.removeItem('myWorkoutData');
-            alert("Session saved for Notion! Local memory cleared for your next workout.");
-        }
-
-        // --- 4. Music Player Logic ---
-        let playlist = [];
-        let currentSongIndex = 0;
-        let isShuffle = false;
-        const audioPlayer = document.getElementById('audioPlayer');
-
-        // Listen for file uploads
-        document.getElementById('musicUpload').addEventListener('change', function(e) {
-            const files = e.target.files;
-            playlist = []; // Clear current playlist
-            
-            for(let i = 0; i < files.length; i++) {
-                playlist.push(files[i]);
-            }
-
-            if(playlist.length > 0) {
-                playSong(0); // Start playing the first song loaded
-            }
+    // ---------- FINISH SESSION ----------
+    function finishWorkout() {
+        if (sessionFinished) return;
+        sessionFinished = true;
+        
+        const totalTime = document.getElementById('globalTimer').innerText;
+        const dayCapitalized = currentDayType.charAt(0).toUpperCase() + currentDayType.slice(1);
+        
+        let finalNote = `🏋️ ${dayCapitalized} Day Workout\n⏱ Total Time: ${totalTime}\n📅 ${new Date().toLocaleDateString()}\n\n`;
+        finalNote += `📝 Logged Sets:\n${sessionData.map((s, i) => `${i+1}. ${s}`).join('\n')}`;
+        
+        if (sessionData.length === 0) finalNote += "No sets logged.";
+        
+        const outputBox = document.getElementById('notionOutput');
+        outputBox.value = finalNote;
+        outputBox.style.display = 'block';
+        document.getElementById('copyBtn').style.display = 'block';
+        
+        localStorage.removeItem('myWorkoutData');
+        
+        document.querySelectorAll('.log-btn').forEach(btn => {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
         });
+        
+        showStatus("Session Complete!");
+    }
 
-        function playSong(index) {
-            if(playlist.length === 0) return;
-            currentSongIndex = index;
-            
-            const file = playlist[index];
-            // Creates a temporary URL to play the local file without uploading it
-            const objectUrl = URL.createObjectURL(file); 
-            
-            audioPlayer.src = objectUrl;
-            document.getElementById('currentSongDisplay').innerText = `Playing: ${file.name}`;
-            audioPlayer.play();
+    function copyToClipboard() {
+        const output = document.getElementById('notionOutput');
+        output.select();
+        document.execCommand('copy');
+        showStatus("📋 Copied for Notion!");
+    }
+
+    // ---------- MUSIC PLAYER ----------
+    let playlist = [];
+    let currentSongIndex = 0;
+    let isShuffle = false;
+    let currentObjectUrl = null;
+    const audioPlayer = document.getElementById('audioPlayer');
+
+    function revokeCurrentUrl() {
+        if (currentObjectUrl) {
+            URL.revokeObjectURL(currentObjectUrl);
+            currentObjectUrl = null;
         }
+    }
 
-        function nextSong() {
-            if(playlist.length === 0) return;
+    function playSong(index) {
+        if (playlist.length === 0) return;
+        revokeCurrentUrl();
+        currentSongIndex = index;
+        const file = playlist[index];
+        const objectUrl = URL.createObjectURL(file);
+        currentObjectUrl = objectUrl;
+        audioPlayer.src = objectUrl;
+        document.getElementById('currentSongDisplay').innerText = `🎵 Playing: ${file.name}`;
+        audioPlayer.play().catch(e => console.log(e));
+    }
 
-            if(isShuffle) {
-                // Pick a random song that isn't the current one (if playlist > 1)
-                let newIndex;
-                do {
-                    newIndex = Math.floor(Math.random() * playlist.length);
-                } while (newIndex === currentSongIndex && playlist.length > 1);
-                playSong(newIndex);
-            } else {
-                // Play next, or loop back to start
-                let nextIndex = (currentSongIndex + 1) % playlist.length;
-                playSong(nextIndex);
+    function nextSong() {
+        if (playlist.length === 0) return;
+        let nextIndex = isShuffle ? Math.floor(Math.random() * playlist.length) : (currentSongIndex + 1) % playlist.length;
+        playSong(nextIndex);
+    }
+
+    function toggleShuffle() {
+        isShuffle = !isShuffle;
+        const btn = document.getElementById('shuffleBtn');
+        btn.innerText = isShuffle ? "🔀 Shuffle: ON" : "🔀 Shuffle: OFF";
+        btn.classList.toggle('active', isShuffle);
+    }
+
+    document.getElementById('musicUpload').addEventListener('change', function(e) {
+        playlist = Array.from(e.target.files);
+        if (playlist.length > 0) playSong(0);
+    });
+
+    audioPlayer.addEventListener('ended', nextSong);
+
+    // ---------- INITIAL LOAD ----------
+    document.addEventListener("DOMContentLoaded", () => {
+        if (routine && routine.length) {
+            loadExercise(0);
+            const saved = localStorage.getItem('myWorkoutData');
+            if (saved) {
+                try { sessionData = JSON.parse(saved); } catch(e) {}
             }
         }
-
-        function toggleShuffle() {
-            isShuffle = !isShuffle;
-            const btn = document.getElementById('shuffleBtn');
-            if(isShuffle) {
-                btn.innerText = "Shuffle: ON";
-                btn.classList.add('active');
-            } else {
-                btn.innerText = "Shuffle: OFF";
-                btn.classList.remove('active');
-            }
-        }
-
-        // Automatically play the next song when the current one ends
-        audioPlayer.addEventListener('ended', nextSong);
-
-        // --- UI Update Function ---
-        function updateInputUI() {
-            const currentEx = routine[currentExerciseIndex];
-            if (currentEx.type === 'time') {
-                document.getElementById('repsWeightGroup').style.display = 'none';
-                document.getElementById('timeGroup').style.display = 'block';
-            } else {
-                document.getElementById('repsWeightGroup').style.display = 'block';
-                document.getElementById('timeGroup').style.display = 'none';
-            }
-        }
-
-
-        // --- Update nextExercise to call the UI toggle ---
-        function nextExercise() {
-            currentExerciseIndex++;
-            if (currentExerciseIndex >= routine.length) {
-                alert("You've completed all exercises! Hit 'Finish Session'.");
-                currentExerciseIndex = routine.length - 1; 
-                return;
-            }
-            
-            document.getElementById('exerciseTitle').innerText = routine[currentExerciseIndex].name;
-            const videoElement = document.getElementById('workoutVideo');
-            videoElement.src = baseVideoUrl + routine[currentExerciseIndex].video;
-            videoElement.play();
-            
-            currentSet = 1;
-            document.getElementById('setIndicator').innerText = `Current Set: ${currentSet}/3`;
-            
-            // Trigger the UI change!
-            updateInputUI();
-        }
-
-        // --- Make sure the UI is correct when the page first loads ---
-        document.addEventListener("DOMContentLoaded", function() {
-            document.getElementById('exerciseTitle').innerText = routine[0].name;
-            document.getElementById('workoutVideo').src = baseVideoUrl + routine[0].video;
-            updateInputUI(); // Set the right inputs for the very first exercise
-        });
-
-    </script>
+    });
+</script>
 </body>
 </html>

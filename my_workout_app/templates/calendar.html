@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Progress Calendar</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .calendar-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .week-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .week-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .day-card {
+            background: #2d2d2d;
+            border-radius: 10px;
+            padding: 15px 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border: 2px solid transparent;
+        }
+        .day-card:hover {
+            transform: translateY(-3px);
+            border-color: #00a8ff;
+        }
+        .day-card.workout-push {
+            background: linear-gradient(145deg, #2d2d2d, #3a1a1a);
+            border-left: 4px solid #e84118;
+        }
+        .day-card.workout-pull {
+            background: linear-gradient(145deg, #2d2d2d, #1a2a3a);
+            border-left: 4px solid #00a8ff;
+        }
+        .day-card.workout-base {
+            background: linear-gradient(145deg, #2d2d2d, #1a3a1a);
+            border-left: 4px solid #4cd137;
+        }
+        .day-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .day-date {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .workout-badge {
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+        .push-badge { background: #e84118; color: white; }
+        .pull-badge { background: #00a8ff; color: white; }
+        .base-badge { background: #4cd137; color: white; }
+        .rest-badge { background: #555; color: #ccc; }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .close-btn {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .set-detail {
+            background: #2d2d2d;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+        }
+        .progress-container {
+            margin-top: 30px;
+            padding: 20px;
+            background: #2d2d2d;
+            border-radius: 12px;
+        }
+        .progress-bar-bg {
+            background: #444;
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar-fill {
+            background: #00a8ff;
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="calendar-container">
+        <h2>📅 Workout Calendar</h2>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <a href="/" style="background: #00a8ff; padding: 8px 16px; border-radius: 8px;">← Back Home</a>
+            <button onclick="setTodayAsStart()" style="background: #7f8c8d; padding: 8px 16px;">📌 Set Today as Program Start</button>
+        </div>
+        
+        <div class="week-nav">
+    <button onclick="changeWeek(-1)">◀ Previous Week</button>
+    <button onclick="goToToday()">📍 Today</button>
+    <span id="weekRange"></span>
+    <button onclick="changeWeek(1)">Next Week ▶</button>
+</div>
+        
+        <div class="week-grid" id="weekGrid"></div>
+        
+        <!-- 3-Month Progression Bar -->
+        <div class="progress-container">
+            <h3>📈 3-Month Program Progress</h3>
+            <div id="progressText">Day 0 of 90</div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="progressFill"></div>
+            </div>
+            <p style="font-size:0.8rem; color:#aaa;">Start date: <span id="startDateDisplay">Not set</span></p>
+        </div>
+    </div>
+    
+    <!-- Day Detail Modal -->
+    <div class="modal" id="dayModal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h3 id="modalTitle"></h3>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+    
+    <script>
+        let currentWeekStart = null;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadWeek();
+            loadProgress();
+        });
+        
+        async function loadWeek(date = null) {
+    let url = '/get_week_data';
+    if (date) url += `?date=${date}`;
+    
+    const res = await fetch(url);
+    const data = await res.json();
+    currentWeekStart = data.week_start;
+    
+    document.getElementById('weekRange').innerText = 
+        `${data.week_start} to ${data.week_end}`;
+    
+    const grid = document.getElementById('weekGrid');
+    grid.innerHTML = '';
+    
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const weekStart = new Date(data.week_start);
+    
+    // Create an array of promises to fetch cycle info for each day
+    const cyclePromises = [];
+    for (let i = 0; i < 7; i++) {
+        const dayDate = new Date(weekStart);
+        dayDate.setDate(dayDate.getDate() + i);
+        const dateStr = dayDate.toISOString().split('T')[0];
+        cyclePromises.push(fetch(`/get_cycle_info?date=${dateStr}`).then(r => r.json()));
+    }
+    
+    const cycleResults = await Promise.all(cyclePromises);
+    
+    for (let i = 0; i < 7; i++) {
+        const dayDate = new Date(weekStart);
+        dayDate.setDate(dayDate.getDate() + i);
+        const dateStr = dayDate.toISOString().split('T')[0];
+        const dayInfo = data.days[dateStr];
+        const cycleInfo = cycleResults[i];
+        
+        const card = document.createElement('div');
+        card.className = 'day-card';
+        if (dayInfo.has_workout) {
+            card.classList.add(`workout-${dayInfo.day_type}`);
+        }
+        card.onclick = () => showDayDetails(dateStr);
+        
+        // Build inner HTML
+        let badgeHtml = '';
+        if (dayInfo.has_workout) {
+            badgeHtml = `<div class="workout-badge ${dayInfo.day_type}-badge">${dayInfo.day_type.toUpperCase()}</div>
+                         <div style="font-size:0.7rem; margin-top:5px;">${dayInfo.first_log_time || ''}</div>`;
+        } else {
+            badgeHtml = `<div class="workout-badge rest-badge">REST</div>`;
+        }
+        
+        // Add expected workout indicator if cycle info available
+        let expectedHtml = '';
+        if (cycleInfo.workout_type && cycleInfo.workout_type !== 'break') {
+            expectedHtml = `<div style="font-size:0.6rem; margin-top:5px; opacity:0.7;">⬤ ${cycleInfo.workout_type.toUpperCase()}</div>`;
+        } else if (cycleInfo.workout_type === 'break') {
+            expectedHtml = `<div style="font-size:0.6rem; margin-top:5px; opacity:0.5;">⬤ BREAK</div>`;
+        }
+        
+        card.innerHTML = `
+            <div class="day-name">${days[i]}</div>
+            <div class="day-date">${dayDate.getDate()}</div>
+            ${badgeHtml}
+            ${expectedHtml}
+        `;
+        grid.appendChild(card);
+    }
+}
+        
+        function changeWeek(direction) {
+            if (!currentWeekStart) return;
+            const date = new Date(currentWeekStart);
+            date.setDate(date.getDate() + (direction * 7));
+            loadWeek(date.toISOString().split('T')[0]);
+        }
+        
+        async function showDayDetails(dateStr) {
+            const res = await fetch(`/get_day_details/${dateStr}`);
+            const data = await res.json();
+            
+            document.getElementById('modalTitle').innerText = `Workout on ${dateStr}`;
+            const body = document.getElementById('modalBody');
+            
+            if (data.logs.length === 0) {
+                body.innerHTML = '<p>No logs for this day.</p>';
+            } else {
+                let html = '';
+                let currentEx = '';
+                data.logs.forEach(log => {
+                    if (log.exercise !== currentEx) {
+                        html += `<h4 style="margin-top:15px;">${log.exercise}</h4>`;
+                        currentEx = log.exercise;
+                    }
+                    let setInfo = `Set ${log.set}: `;
+                    if (log.reps) setInfo += `${log.reps} reps @ ${log.weight}kg`;
+                    else setInfo += `${log.duration}s`;
+                    if (log.comment) setInfo += ` <span style="color:#aaa;">(${log.comment})</span>`;
+                    setInfo += ` <span style="color:#888; font-size:0.8rem;">${log.time}</span>`;
+                    html += `<div class="set-detail">${setInfo}</div>`;
+                });
+                body.innerHTML = html;
+            }
+            document.getElementById('dayModal').style.display = 'flex';
+        }
+        
+        function closeModal() {
+            document.getElementById('dayModal').style.display = 'none';
+        }
+        
+        // Progress Bar
+        async function loadProgress() {
+            const res = await fetch('/get_start_date');
+            const data = await res.json();
+            const startDate = data.start_date;
+            
+            if (!startDate) {
+                document.getElementById('progressText').innerText = 'Set a start date to track progress';
+                document.getElementById('startDateDisplay').innerText = 'Not set';
+                return;
+            }
+            
+            const start = new Date(startDate);
+            const today = new Date();
+            const elapsedDays = Math.floor((today - start) / (1000 * 60 * 60 * 24));
+            const totalDays = 90;
+            const percent = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+            
+            document.getElementById('progressText').innerText = `Day ${elapsedDays} of ${totalDays}`;
+            document.getElementById('progressFill').style.width = `${percent}%`;
+            document.getElementById('startDateDisplay').innerText = startDate;
+        }
+        
+        async function setTodayAsStart() {
+            const today = new Date().toISOString().split('T')[0];
+            const res = await fetch('/set_start_date', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({start_date: today})
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                alert('Program start date set!');
+                loadProgress();
+            }
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = (event) => {
+            const modal = document.getElementById('dayModal');
+            if (event.target === modal) modal.style.display = 'none';
+        }
+
+
+        function goToToday() {
+    const today = new Date().toISOString().split('T')[0];
+    loadWeek(today);
+}
+    </script>
+</body>
+</html>

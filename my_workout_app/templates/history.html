@@ -3,32 +3,217 @@
 <head>
     <meta charset="UTF-8">
     <title>Workout History</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        body { background-color: #121212; color: white; font-family: Arial; padding: 20px; }
-        .log-card { background: #2d2d2d; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
-        .timestamp { color: #888; font-size: 0.8rem; }
+        .log-card {
+            background: #2d2d2d;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-radius: 10px;
+            border-left: 4px solid #00a8ff;
+            position: relative;
+        }
+        .timestamp {
+            color: #888;
+            font-size: 0.8rem;
+            font-family: monospace;
+        }
+        .log-actions {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            display: flex;
+            gap: 8px;
+        }
+        .log-actions button {
+            background: none;
+            border: none;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .log-actions button:hover {
+            background: #444;
+            color: white;
+        }
+        .edit-btn:hover { color: #00a8ff; }
+        .delete-btn:hover { color: #e84118; }
+        .edit-form {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #444;
+            display: none;
+        }
+        .edit-form input, .edit-form textarea {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 8px;
+            background: #1e1e1e;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+        }
+        .edit-form button {
+            margin-right: 10px;
+        }
+        .clear-btn {
+            background-color: #7f8c8d;
+        }
+        .comment-badge {
+            background: #3a3a3a;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            color: #ccc;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
-    <h2>🏋️ My Workout History</h2>
-    <a href="/" style="color: #00a8ff; text-decoration: none;">← Back Home</a>
-    <hr style="border-color: #333; margin: 20px 0;">
-
-    {% for log in logs %}
-        <div class="log-card">
-            <div class="timestamp">{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</div>
-            <strong>{{ log.day_type | capitalize }} Day:</strong> {{ log.exercise_name }} 
-            (Set {{ log.set_number }})
-            
-            {% if log.reps %}
-                - {{ log.reps }} reps @ {{ log.weight }}kg
-            {% else %}
-                - {{ log.duration }} seconds
-            {% endif %}
+    <div style="max-width: 800px; width: 100%;">
+        <h2>📋 Workout History</h2>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <a href="/" style="background: #00a8ff; padding: 8px 16px; border-radius: 8px;">← Back Home</a>
+            <button onclick="clearHistory()" class="clear-btn" style="padding: 8px 16px;">🗑 Clear All History</button>
         </div>
-    {% else %}
-        <p>No workouts logged yet. Go lift something!</p>
-    {% endfor %}
+        <hr style="border-color: #333; margin: 10px 0 20px;">
+        
+        <div id="logsContainer">
+            {% for log in logs %}
+                <div class="log-card" id="log-{{ log.id }}">
+                    <div class="timestamp">{{ log.timestamp.strftime('%Y-%m-%d %I:%M %p') }}</div>
+                    <div class="log-actions">
+                        <button class="edit-btn" onclick="toggleEditForm({{ log.id }})" title="Edit">✏️</button>
+                        <button class="delete-btn" onclick="deleteLog({{ log.id }})" title="Delete">🗑️</button>
+                    </div>
+                    <strong>{{ log.day_type | capitalize }} Day:</strong> {{ log.exercise_name }}
+                    (Set {{ log.set_number }}/3)
+                    {% if log.reps %}
+                        → {{ log.reps }} reps @ {{ log.weight }}kg
+                    {% elif log.duration %}
+                        → {{ log.duration }} seconds
+                    {% endif %}
+                    {% if log.comment %}
+                        <span class="comment-badge">💬 {{ log.comment }}</span>
+                    {% endif %}
+                    
+                    <!-- Inline Edit Form (hidden by default) -->
+                    <div class="edit-form" id="edit-form-{{ log.id }}">
+                        <h4>Edit Set</h4>
+                        <label>Reps:</label>
+                        <input type="number" id="edit-reps-{{ log.id }}" value="{{ log.reps or '' }}" min="0">
+                        <label>Weight (kg):</label>
+                        <input type="number" id="edit-weight-{{ log.id }}" value="{{ log.weight or '' }}" step="0.5" min="0">
+                        <label>Duration (sec):</label>
+                        <input type="number" id="edit-duration-{{ log.id }}" value="{{ log.duration or '' }}" min="0">
+                        <label>Comment:</label>
+                        <textarea id="edit-comment-{{ log.id }}" rows="2">{{ log.comment or '' }}</textarea>
+                        <button onclick="saveEdit({{ log.id }})" style="background: #00a8ff;">💾 Save</button>
+                        <button onclick="toggleEditForm({{ log.id }})" style="background: #555;">Cancel</button>
+                    </div>
+                </div>
+            {% else %}
+                <div class="panel" style="text-align: center;">
+                    <p>🏋️ No workouts logged yet.</p>
+                    <p><a href="/" style="color: #00a8ff;">Start your first workout →</a></p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
 
+    <script>
+        // Toggle inline edit form visibility
+        function toggleEditForm(logId) {
+            const form = document.getElementById(`edit-form-${logId}`);
+            if (form.style.display === 'none' || form.style.display === '') {
+                form.style.display = 'block';
+            } else {
+                form.style.display = 'none';
+            }
+        }
+
+        // Save edited log
+        async function saveEdit(logId) {
+            const reps = document.getElementById(`edit-reps-${logId}`).value;
+            const weight = document.getElementById(`edit-weight-${logId}`).value;
+            const duration = document.getElementById(`edit-duration-${logId}`).value;
+            const comment = document.getElementById(`edit-comment-${logId}`).value;
+
+            const payload = {
+                reps: reps ? parseFloat(reps) : null,
+                weight: weight ? parseFloat(weight) : null,
+                duration: duration ? parseInt(duration) : null,
+                comment: comment
+            };
+
+            try {
+                const response = await fetch(`/update_log/${logId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    alert('Log updated!');
+                    location.reload();  // Simple reload to refresh display
+                } else {
+                    alert('Update failed.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Server error.');
+            }
+        }
+
+        // Delete individual log
+        async function deleteLog(logId) {
+            if (!confirm('Delete this log entry?')) return;
+            
+            try {
+                const response = await fetch(`/delete_log/${logId}`, { method: 'POST' });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    // Remove the card from DOM without reload
+                    const card = document.getElementById(`log-${logId}`);
+                    card.remove();
+                    
+                    // If no logs left, show empty message
+                    const container = document.getElementById('logsContainer');
+                    if (container.children.length === 0) {
+                        container.innerHTML = `<div class="panel" style="text-align: center;">
+                            <p>🏋️ No workouts logged yet.</p>
+                            <p><a href="/" style="color: #00a8ff;">Start your first workout →</a></p>
+                        </div>`;
+                    }
+                } else {
+                    alert('Delete failed.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Server error.');
+            }
+        }
+
+        // Clear all history (unchanged)
+        async function clearHistory() {
+            if (!confirm("⚠️ This will delete ALL workout history permanently. Are you sure?")) return;
+            
+            try {
+                const response = await fetch('/clear_history', { method: 'POST' });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    alert(`Deleted ${data.deleted} records. Page will refresh.`);
+                    location.reload();
+                } else {
+                    alert("Error clearing history.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Server error. Is the app running?");
+            }
+        }
+    </script>
 </body>
 </html>

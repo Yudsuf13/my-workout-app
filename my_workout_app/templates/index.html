@@ -4,47 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Workout Tracker</title>
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #121212;
-            font-family: Arial, sans-serif;
-            gap: 20px; /* Adds space between buttons */
-        }
-        .start-btn {
-            color: white;
-            border: none;
-            padding: 20px 40px;
-            font-size: 1.5rem;
-            border-radius: 10px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: 0.3s;
-            width: 250px;
-            text-align: center;
-            font-weight: bold;
-        }
-        .push { background-color: #ff4757; }
-        .push:hover { background-color: #ff6b81; transform: scale(1.05); }
-        
-        .pull { background-color: #1e90ff; }
-        .pull:hover { background-color: #70a1ff; transform: scale(1.05); }
-        
-        .base { background-color: #2ed573; }
-        .base:hover { background-color: #7bed9f; transform: scale(1.05); }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    <div id="todaySuggestion" class="panel" style="margin-bottom: 20px; text-align: center; background: #2d2d2d; padding: 15px;">
+    <span id="suggestionText">Loading...</span>
+</div>
+    <div class="home-buttons">
+        <a href="/workout/push" class="workout-btn push">💪 Day 1: Push</a>
+        <a href="/workout/pull" class="workout-btn pull">🏋️ Day 2: Pull</a>
+        <a href="/workout/base" class="workout-btn base">🦵 Day 3: Base</a>
+        <a href="/history" class="workout-btn history-btn">📊 View History</a>
+        <a href="/calendar" class="workout-btn calendar-btn">📅 Progress</a>
+    </div>
 
-    <a href="/workout/push" class="start-btn push">Day 1: Push</a>
-    <a href="/workout/pull" class="start-btn pull">Day 2: Pull</a>
-    <a href="/workout/base" class="start-btn base">Day 3: Base</a>
-
-    <a href="/history" class="start-btn" style="background-color: #7f8c8d; margin-top: 20px;">View History</a>
+    <script>
+    async function loadTodaySuggestion() {
+        try {
+            const res = await fetch('/get_cycle_info');
+            const data = await res.json();
+            const suggestionDiv = document.getElementById('suggestionText');
+            if (data.workout_type === 'break') {
+                suggestionDiv.innerHTML = '😴 Today is a <strong>Break Day</strong>. Rest up, you earned it!';
+            } else if (data.workout_type) {
+                const capitalized = data.workout_type.charAt(0).toUpperCase() + data.workout_type.slice(1);
+                suggestionDiv.innerHTML = `💪 Today is <strong>${capitalized} Day</strong>! <a href="/workout/${data.workout_type}" style="color: #00a8ff; margin-left: 10px;">Start Workout →</a>`;
+            } else {
+                suggestionDiv.innerHTML = '📅 Set your program start date in the Calendar to see today\'s workout.';
+            }
+        } catch (e) {
+            document.getElementById('suggestionText').innerText = 'Could not load suggestion.';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', loadTodaySuggestion);
+</script>
 </body>
 </html>
